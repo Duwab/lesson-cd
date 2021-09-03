@@ -1,0 +1,31 @@
+version: '3.4'
+
+services:
+    proxy:
+      build: ./apps/proxy
+      networks:
+          webservices:
+      # volumes:
+      #   - ./apps/proxy/sites-enabled/proxies.conf:/etc/nginx/conf.d/proxies.conf
+      #   - ./apps/proxy/html:/usr/share/nginx/html
+      ports:
+        - 8088:8080
+
+    worder-1:
+        build: ./apps/app-1
+        # ports:
+        #   - 444:80
+        networks:
+            webservices:
+              aliases:
+                - ct-app-1
+
+    worder-2:
+        build: ./apps/app-2
+        networks:
+            webservices:
+              aliases:
+                - ct-app-2
+
+networks:
+  webservices:
