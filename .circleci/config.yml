@@ -1,5 +1,10 @@
 version: 2.1
 executors:
+  docker-publisher-proxy:
+    environment:
+      IMAGE_NAME: duwab/lesson-proxy
+    docker:
+      - image: circleci/buildpack-deps:stretch
   docker-publisher-app-1:
     environment:
       IMAGE_NAME: duwab/lesson-app-1
@@ -12,6 +17,39 @@ executors:
       - image: circleci/buildpack-deps:stretch
 
 jobs:
+  build-proxy:
+    executor: docker-publisher-proxy
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build Docker image
+          command: docker build -t $IMAGE_NAME:latest ./apps/proxy
+      - run:
+          name: Archive Docker image
+          command: docker save -o image-proxy.tar $IMAGE_NAME
+      - persist_to_workspace:
+          root: .
+          paths:
+            - ./image-proxy.tar
+
+  # proxy jobs
+  publish-proxy:
+    executor: docker-publisher-proxy
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - setup_remote_docker
+      - run:
+          name: Load archived Docker image
+          command: docker load -i /tmp/workspace/image-proxy.tar
+      - run:
+          name: Publish Docker Image to Docker Hub
+          command: |
+            echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            docker push $IMAGE_NAME:latest
+
+  # app-1 jobs
   build-app-1:
     executor: docker-publisher-app-1
     steps:
@@ -43,6 +81,7 @@ jobs:
             echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
             docker push $IMAGE_NAME:latest
 
+  # app-2 jobs
   build-app-2:
     executor: docker-publisher-app-2
     steps:
@@ -78,6 +117,16 @@ workflows:
   version: 2
   build-master:
     jobs:
+      - build-proxy:
+          filters:
+            branches:
+              only: master
+      - publish-proxy:
+          requires:
+            - build-proxy
+          filters:
+            branches:
+              only: master
       - build-app-1:
           filters:
             branches:
