@@ -5,6 +5,6 @@
 
 
 ```
-docker build -t cd-apache .
-docker run -p 444:80 --rm --name ct-worker-1 cd-apache
+docker build -t cd-apache ./apps/app-1
+docker run -p 8080:80 --rm --name ct-worker-1 cd-apache
 ```
