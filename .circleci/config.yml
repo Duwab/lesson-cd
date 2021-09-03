@@ -1,14 +1,19 @@
 version: 2.1
 executors:
-  docker-publisher:
+  docker-publisher-app-1:
     environment:
       IMAGE_NAME: duwab/lesson-app-1
     docker:
       - image: circleci/buildpack-deps:stretch
+  docker-publisher-app-2:
+    environment:
+      IMAGE_NAME: duwab/lesson-app-2
+    docker:
+      - image: circleci/buildpack-deps:stretch
 
 jobs:
-  build:
-    executor: docker-publisher
+  build-app-1:
+    executor: docker-publisher-app-1
     steps:
       - checkout
       - setup_remote_docker
@@ -17,21 +22,52 @@ jobs:
           command: docker build -t $IMAGE_NAME:latest ./apps/app-1
       - run:
           name: Archive Docker image
-          command: docker save -o image.tar $IMAGE_NAME
+          command: docker save -o image-app-1.tar $IMAGE_NAME
       - persist_to_workspace:
           root: .
           paths:
-            - ./image.tar
+            - ./image-app-1.tar
 
-  publish-latest:
-    executor: docker-publisher
+  publish-app-1:
+    executor: docker-publisher-app-1
     steps:
       - attach_workspace:
           at: /tmp/workspace
       - setup_remote_docker
       - run:
           name: Load archived Docker image
-          command: docker load -i /tmp/workspace/image.tar
+          command: docker load -i /tmp/workspace/image-app-1.tar
+      - run:
+          name: Publish Docker Image to Docker Hub
+          command: |
+            echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            docker push $IMAGE_NAME:latest
+
+  build-app-2:
+    executor: docker-publisher-app-2
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build Docker image
+          command: docker build -t $IMAGE_NAME:latest ./apps/app-2
+      - run:
+          name: Archive Docker image
+          command: docker save -o image-app-2.tar $IMAGE_NAME
+      - persist_to_workspace:
+          root: .
+          paths:
+            - ./image-app-2.tar
+
+  publish-app-2:
+    executor: docker-publisher-app-2
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - setup_remote_docker
+      - run:
+          name: Load archived Docker image
+          command: docker load -i /tmp/workspace/image-app-2.tar
       - run:
           name: Publish Docker Image to Docker Hub
           command: |
@@ -42,13 +78,23 @@ workflows:
   version: 2
   build-master:
     jobs:
-      - build:
+      - build-app-1:
           filters:
             branches:
               only: master
-      - publish-latest:
+      - publish-app-1:
           requires:
-            - build
+            - build-app-1
+          filters:
+            branches:
+              only: master
+      - build-app-2:
+          filters:
+            branches:
+              only: master
+      - publish-app-2:
+          requires:
+            - build-app-2
           filters:
             branches:
               only: master
