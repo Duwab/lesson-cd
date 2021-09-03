@@ -1,0 +1,27 @@
+# turn this file into a template to generate dynamic stack files
+version: '3.4'
+
+services:
+    proxy:
+      image: duwab/lesson-proxy
+      networks:
+          webservices:
+      ports:
+        - 8088:8080
+
+    app-1:
+        image: duwab/lesson-app-1
+        networks:
+            webservices:
+              aliases:
+                - ct-app-1
+
+    app-2:
+        image: duwab/lesson-app-2
+        networks:
+            webservices:
+              aliases:
+                - ct-app-2
+
+networks:
+  webservices:
